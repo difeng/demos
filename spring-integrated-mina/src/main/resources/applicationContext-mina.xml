@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:util="http://http://www.springframework.org/schema/util"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:lang="http://www.springframework.org/schema/lang" xmlns:cache="http://www.springframework.org/schema/cache"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:p="http://www.springframework.org/schema/p"
+	xsi:schemaLocation="
+        http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.0.xsd
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd
+        http://www.springframework.org/schema/lang http://www.springframework.org/schema/lang/spring-lang-4.0.xsd
+        http://www.springframework.org/schema/cache http://www.springframework.org/schema/cache/spring-cache-4.0.xsd
+        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.0.xsd
+        http://www.springframework.org/schema/util 
+	    http://www.springframework.org/schema/util/spring-util-3.0.xsd">
+	<!-- This makes it possible to specify java.net.SocketAddress values They 
+		will be converted into java.net.InetSocketAddress objects by Spring. -->
+	<bean class="org.springframework.beans.factory.config.CustomEditorConfigurer">
+		<property name="customEditors">
+			<map>
+				<entry key="java.net.SocketAddress"
+					value="org.apache.mina.integration.beans.InetSocketAddressEditor" />
+			</map>
+		</property>
+	</bean>
+	<!-- mina server configure-->
+	<!-- The IoHandler implementation -->
+	<bean id="serverHandler" class="com.difeng.spring.mina.server.ServerHandler" />
+
+
+	<!-- the IoFilters -->
+	<bean id="executorFilter" class="org.apache.mina.filter.executor.ExecutorFilter">
+	</bean>
+
+	<bean id="mdcInjectionFilter" class="org.apache.mina.filter.logging.MdcInjectionFilter">
+		<constructor-arg value="remoteAddress" />
+	</bean>
+
+	<bean id="codecFilter" class="org.apache.mina.filter.codec.ProtocolCodecFilter">
+		<constructor-arg>
+			<bean
+				class="org.apache.mina.filter.codec.serialization.ObjectSerializationCodecFactory">
+			</bean>
+		</constructor-arg>
+	</bean>
+
+	<bean id="loggingFilter" class="org.apache.mina.filter.logging.LoggingFilter" />
+
+	<!-- The non-SSL filter chain. -->
+	<bean id="filterChainBuilder"
+		class="org.apache.mina.core.filterchain.DefaultIoFilterChainBuilder">
+		
+		<property name="filters">
+			<map>
+				<!-- <entry key="executor" value-ref="executorFilter" /> -->
+				<!-- <entry key="mdcInjectionFilter" value-ref="mdcInjectionFilter" /> -->
+				<entry key="codecFilter" value-ref="codecFilter" />
+				<!-- <entry key="loggingFilter" value-ref="loggingFilter" /> -->
+				<entry key="heart" value-ref="keepAliveFilter" />
+			</map>
+		</property>
+	</bean>
+	<bean id="keepAliveMessageFactory"
+		class="com.difeng.spring.mina.server.KeepAliveMessageFactoryImpl">
+	</bean>
+	<!-- <bean id="idleStatus1" class="org.apache.mina.core.session.IdleStatus"> 
+		<constructor-arg type="java.lang.String" value="both idle"></constructor-arg> 
+		</bean> -->
+	<bean id="keepAliveFilter" class="org.apache.mina.filter.keepalive.KeepAliveFilter">
+		<constructor-arg ref="keepAliveMessageFactory" />
+		<!-- <constructor-arg ref="idleStatus1"> </constructor-arg> -->
+		<property name="forwardEvent" value="true" />
+		<!-- <property name="requestInterval" value="30" /> -->
+
+	</bean>
+
+	<!-- The Tcp IoAcceptor which binds to port 30001 -->
+	<!-- TCP Server -->
+	<bean id="tcpAcceptor" class="org.apache.mina.transport.socket.nio.NioSocketAcceptor"
+		init-method="bind" destroy-method="unbind">
+		<property name="defaultLocalAddress" value=":30001" />
+		<property name="handler" ref="serverHandler" />
+		<property name="reuseAddress" value="true" />
+		<property name="filterChainBuilder" ref="filterChainBuilder" />
+	</bean>
+</beans>
